@@ -1,5 +1,7 @@
 # PDF Question Answering Bot
 
+**Small RAG application** · [Portfolio](https://github.com/MohammadKhairJaradat) · [CV](https://github.com/MohammadKhairJaradat/blob/main/Mohammad_Khair_Jaradat_CV.pdf)
+
 A Python app for asking questions about PDF documents. It uses retrieval-augmented generation (RAG) with Google Gemini and shows the supporting passages with page numbers.
 
 **Stack:** Python · LangChain · Chroma · Gemini API · Gradio
@@ -96,4 +98,4 @@ Live validation on October 13, 2026 covered three supported questions and one qu
 - Gemini mode sends extracted text and questions to Google. Local mode makes no model API calls. `.env` is excluded from Git.
 - The app runs on localhost. Gradio may keep temporary upload files, and cloud requests can fail when quota is exhausted or the service is busy.
 
-Inspired by a PDF QA lab in the IBM AI Engineering course; developed as an independent portfolio project.
+Inspired by a PDF QA lab in the [IBM AI Engineering Professional Certificate](https://coursera.org/verify/professional-cert/DY3SM13IY132), completed in October 2026; developed as an independent portfolio project.
