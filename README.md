@@ -1,6 +1,6 @@
 # PDF Question Answering Bot
 
-**Small RAG application** · [Portfolio](https://github.com/MohammadKhairJaradat) · [CV](https://github.com/MohammadKhairJaradat/blob/main/Mohammad_Khair_Jaradat_CV.pdf)
+**Small RAG application** · [Portfolio](https://github.com/MohammadKhairJaradat) · [CV](https://github.com/MohammadKhairJaradat/MohammadKhairJaradat/blob/main/Mohammad_Khair_Jaradat_CV.pdf)
 
 A Python app for asking questions about PDF documents. It uses retrieval-augmented generation (RAG) with Google Gemini and shows the supporting passages with page numbers.
 
