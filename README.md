@@ -87,6 +87,8 @@ tests/test_qa_bot.py            Offline tests
 
 The **35 offline tests** cover extraction, chunk metadata, known-answer retrieval, file replacement, size limits, source references, collection cleanup, and safe error messages. They use test doubles for generation and do not call the Gemini API. GitHub Actions is configured to run them on pushes and pull requests.
 
+All **35 tests passed** in a fresh Python 3.12 environment on **October 14, 2026**. This count measures automated checks, not answer accuracy on arbitrary documents.
+
 Live validation on October 13, 2026 covered three supported questions and one question with no answer in a two-page Python reference PDF. The fictional handbook's browser flow was rechecked on October 14 with a correct answer and source page. Additional requests encountered temporary Google service errors (HTTP 503). These manual checks demonstrate the workflow; they are not a general accuracy benchmark.
 
 ## Limitations
