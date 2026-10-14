@@ -101,3 +101,7 @@ Live validation on October 13, 2026 covered three supported questions and one qu
 - The app runs on localhost. Gradio may keep temporary upload files, and cloud requests can fail when quota is exhausted or the service is busy.
 
 Inspired by a PDF QA lab in the [IBM AI Engineering Professional Certificate](https://coursera.org/verify/professional-cert/DY3SM13IY132), completed in October 2026; developed as an independent portfolio project.
+
+## Contact
+
+[Email Mohammad Khair Jaradat](mailto:mohammad.sameer.jaradat@gmail.com) · [GitHub profile](https://github.com/MohammadKhairJaradat) · [CV](https://github.com/MohammadKhairJaradat/MohammadKhairJaradat/blob/main/Mohammad_Khair_Jaradat_CV.pdf)
