@@ -274,3 +274,45 @@ def test_python_indexing_is_not_treated_as_a_source_reference(answer):
         qa_bot.answer_from_context("How do I get the first item?", documents, model)
         == answer
     )
+
+
+def test_ingest_document_summary_and_empty_page_tracking(tmp_path):
+    pdf_path = tmp_path / "mixed.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=595, height=842)
+    writer.append(PdfReader(SAMPLE), pages=(0, 2))
+    writer.write(pdf_path)
+
+    chunks, summary = qa_bot.ingest_document(pdf_path)
+    assert summary["source"] == "mixed.pdf"
+    assert summary["pages_total"] == 3
+    assert summary["pages_with_text"] == 2
+    assert summary["empty_pages_skipped"] == 1
+    assert summary["chunks_created"] == len(chunks) == 2
+    assert len(summary["file_sha256"]) == 64
+
+
+def test_batch_ingest_cli_idempotency_and_exports(tmp_path):
+    import json
+    import ingest
+
+    out_dir = tmp_path / "processed"
+    first_report = ingest.run_batch_ingestion(SAMPLE, output_dir=out_dir)
+    assert first_report["files_ingested"] == 1
+    assert first_report["files_skipped_unchanged"] == 0
+    assert first_report["total_chunks_in_catalog"] == 3
+    assert (out_dir / "chunks.csv").is_file()
+    assert (out_dir / "ingestion_summary.json").is_file()
+    assert (out_dir / "manifest.json").is_file()
+
+    second_report = ingest.run_batch_ingestion(SAMPLE, output_dir=out_dir)
+    assert second_report["files_ingested"] == 0
+    assert second_report["files_skipped_unchanged"] == 1
+    assert second_report["total_chunks_in_catalog"] == 3
+
+    saved_summary = json.loads(
+        (out_dir / "ingestion_summary.json").read_text(encoding="utf-8")
+    )
+    assert saved_summary["files"][0]["status"] == "skipped_unchanged"
+    assert saved_summary["files"][0]["pages_total"] == 3
+

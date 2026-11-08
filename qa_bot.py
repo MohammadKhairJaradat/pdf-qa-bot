@@ -1,5 +1,7 @@
 """PDF retrieval and question answering."""
 
+import hashlib
+import logging
 import os
 import re
 from pathlib import Path
@@ -15,6 +17,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+logger = logging.getLogger(__name__)
+
 LOCAL_MODE = "Local retrieval demo"
 GEMINI_MODE = "Gemini RAG"
 CHUNK_SIZE = 800
@@ -27,7 +31,26 @@ class InputError(ValueError):
     """An input or configuration error that can be shown to the user."""
 
 
-def document_loader(file):
+def compute_file_sha256(file):
+    """Return the hex SHA-256 digest of a file."""
+    digest = hashlib.sha256()
+    with Path(file).open("rb") as handle:
+        for block in iter(lambda: handle.read(65536), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def clean_page_text(text):
+    """Normalize whitespace in extracted page text while preserving lines."""
+    if not text:
+        return ""
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in text.splitlines()]
+    cleaned = "\n".join(line for line in lines if line)
+    return cleaned.strip()
+
+
+def extract_pdf_pages(file):
+    """Stage 1 & 2: Validate file, extract raw page text, and normalize whitespace."""
     if not file:
         raise InputError("Upload a PDF first.")
     path = Path(file)
@@ -38,22 +61,28 @@ def document_loader(file):
     if path.stat().st_size > 10 * 1024 * 1024:
         raise InputError("Use a PDF no larger than 10 MB.")
 
+    file_sha256 = compute_file_sha256(path)
     try:
         reader = PdfReader(path)
         if reader.is_encrypted:
             raise InputError("Use an unencrypted PDF.")
         if len(reader.pages) > 100:
             raise InputError("Use a PDF with no more than 100 pages.")
+        pages_total = len(reader.pages)
         documents = []
+        empty_pages = []
         for number, page in enumerate(reader.pages, start=1):
-            text = page.extract_text() or ""
-            if text.strip():
+            raw_text = page.extract_text() or ""
+            cleaned = clean_page_text(raw_text)
+            if cleaned:
                 documents.append(
                     Document(
-                        page_content=text,
+                        page_content=cleaned,
                         metadata={"source": path.name, "page": number},
                     )
                 )
+            else:
+                empty_pages.append(number)
     except InputError:
         raise
     except Exception as error:
@@ -61,8 +90,28 @@ def document_loader(file):
             "The PDF could not be read. Use a valid, unencrypted PDF."
         ) from error
 
+    logger.info(
+        "Extracted %s: %d/%d pages with text (%d empty skipped)",
+        path.name,
+        len(documents),
+        pages_total,
+        len(empty_pages),
+    )
     if not documents:
         raise InputError("No readable text was found. Scanned PDFs need OCR first.")
+    stats = {
+        "source": path.name,
+        "file_sha256": file_sha256,
+        "pages_total": pages_total,
+        "pages_with_text": len(documents),
+        "empty_pages_skipped": len(empty_pages),
+        "empty_page_numbers": empty_pages,
+    }
+    return documents, stats
+
+
+def document_loader(file):
+    documents, _ = extract_pdf_pages(file)
     return documents
 
 
@@ -70,10 +119,33 @@ def text_splitter(documents):
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP
     )
-    chunks = splitter.split_documents(documents)
+    raw_chunks = splitter.split_documents(documents)
+    chunks = [chunk for chunk in raw_chunks if chunk.page_content and chunk.page_content.strip()]
     if len(chunks) > 300:
         raise InputError("This demo supports up to 300 text chunks. Use a shorter PDF.")
     return chunks
+
+
+def ingest_document(file):
+    """Run the full ingestion pipeline (extract -> clean -> validate -> chunk) and return (chunks, summary)."""
+    documents, stats = extract_pdf_pages(file)
+    chunks = text_splitter(documents)
+    summary = {
+        "source": stats["source"],
+        "file_sha256": stats["file_sha256"],
+        "pages_total": stats["pages_total"],
+        "pages_with_text": stats["pages_with_text"],
+        "empty_pages_skipped": stats["empty_pages_skipped"],
+        "chunks_created": len(chunks),
+    }
+    logger.info(
+        "Ingested %s (sha256=%s...): %d pages -> %d chunks",
+        summary["source"],
+        summary["file_sha256"][:12],
+        summary["pages_with_text"],
+        summary["chunks_created"],
+    )
+    return chunks, summary
 
 
 class LocalTfidfEmbeddings(Embeddings):
@@ -153,7 +225,7 @@ def vector_database(chunks, embedding):
 def retriever(file, mode=LOCAL_MODE):
     if mode not in (LOCAL_MODE, GEMINI_MODE):
         raise InputError("Choose a supported mode.")
-    chunks = text_splitter(document_loader(file))
+    chunks, _ = ingest_document(file)
     if mode == GEMINI_MODE:
         embedding = gemini_embedding()
     else:

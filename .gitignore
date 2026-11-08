@@ -8,5 +8,6 @@ __pycache__/
 *.log
 .gradio/
 tmp/
+data/processed/
 .coverage
 htmlcov/
